@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morse Flash</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 500px;
+    background: #1c1c1c;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px #000;
+  }
+
+  textarea {
+    width: 100%;
+    height: 120px;
+    font-size: 18px;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    background: #2a2a2a;
+    color: #fff;
+  }
+
+  button {
+    width: 100%;
+    padding: 15px;
+    margin-top: 15px;
+    font-size: 20px;
+    border: none;
+    border-radius: 8px;
+    background: #4caf50;
+    color: white;
+    font-weight: bold;
+  }
+
+  .slider-container {
+    margin-top: 20px;
+  }
+
+  input[type=range] {
+    width: 100%;
+  }
+
+  .morse-preview {
+    margin-top: 15px;
+    padding: 10px;
+    background: #222;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 16px;
+    color: #0f0;
+    min-height: 40px;
+  }
+
+  /* Progress bar */
+  .progress-wrapper {
+    width: 100%;
+    background: #333;
+    border-radius: 8px;
+    margin-top: 20px;
+    height: 20px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #4caf50;
+    transition: width 0.1s linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Morse Code Flash Transmitter</h2>
+
+  <textarea id="textInput" placeholder="Type your message..."></textarea>
+
+  <div class="slider-container">
+    <label>Speed (Dot Duration): <span id="speedLabel">200 ms</span></label>
+    <input type="range" id="speedSlider" min="50" max="400" value="200">
+  </div>
+
+  <div class="morse-preview" id="morsePreview"></div>
+
+  <div class="progress-wrapper">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <button id="sendBtn">Flash Message</button>
+</div>
+
+<script>
+const morseMap = {
+  "a": ".-", "b": "-...", "c": "-.-.", "d": "-..",
+  "e": ".", "f": "..-.", "g": "--.", "h": "....",
+  "i": "..", "j": ".---", "k": "-.-", "l": ".-..",
+  "m": "--", "n": "-.", "o": "---", "p": ".--.",
+  "q": "--.-", "r": ".-.", "s": "...", "t": "-",
+  "u": "..-", "v": "...-", "w": ".--", "x": "-..-",
+  "y": "-.--", "z": "--..",
+  "0": "-----", "1": ".----", "2": "..---", "3": "...--",
+  "4": "....-", "5": ".....", "6": "-....", "7": "--...",
+  "8": "---..", "9": "----."
+};
+
+let track;
+
+// Flash control
+async function flash(on) {
+  if (!track) return;
+  try {
+    await track.applyConstraints({ advanced: [{ torch: on }] });
+  } catch (e) {
+    console.error("Torch error:", e);
+  }
+}
+
+function toMorse(text) {
+  return text.toLowerCase().split("").map(ch => {
+    if (morseMap[ch]) return morseMap[ch];
+    if (ch === " ") return " ";
+    return "";
+  }).join(" ");
+}
+
+function sleep(ms) {
+  return new Promise(res => setTimeout(res, ms));
+}
+
+async function playMorse(morse, dot) {
+  const DASH = dot * 3;
+  const GAP = dot;
+  const WORD_GAP = dot * 7;
+
+  const progressBar = document.getElementById("progressBar");
+  const totalSymbols = morse.length;
+  let progress = 0;
+
+  for (let symbol of morse) {
+    progress++;
+    progressBar.style.width = (progress / totalSymbols * 100) + "%";
+
+    if (symbol === ".") {
+      await flash(true);  await sleep(dot);
+      await flash(false); await sleep(GAP);
+    } else if (symbol === "-") {
+      await flash(true);  await sleep(DASH);
+      await flash(false); await sleep(GAP);
+    } else if (symbol === " ") {
+      await sleep(WORD_GAP);
+    }
+  }
+
+  // Reset progress bar after finishing
+  await sleep(300);
+  progressBar.style.width = "0%";
+}
+
+async function initCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment" }
+  });
+  track = stream.getVideoTracks()[0];
+}
+
+document.getElementById("speedSlider").oninput = function() {
+  document.getElementById("speedLabel").innerText = this.value + " ms";
+};
+
+document.getElementById("textInput").oninput = function() {
+  document.getElementById("morsePreview").innerText = toMorse(this.value);
+};
+
+document.getElementById("sendBtn").onclick = async () => {
+  if (!track) await initCamera();
+
+  const text = document.getElementById("textInput").value;
+  const morse = toMorse(text);
+  const dot = parseInt(document.getElementById("speedSlider").value);
+
+  document.getElementById("morsePreview").innerText = morse;
+
+  await playMorse(morse, dot);
+};
+</script>
+
+</body>
+</html>
