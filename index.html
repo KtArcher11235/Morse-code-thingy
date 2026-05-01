@@ -42,9 +42,18 @@
     font-size: 20px;
     border: none;
     border-radius: 8px;
+    font-weight: bold;
+  }
+
+  #sendBtn {
     background: #4caf50;
     color: white;
-    font-weight: bold;
+  }
+
+  #cancelBtn {
+    background: #d9534f;
+    color: white;
+    display: none;
   }
 
   .slider-container {
@@ -66,7 +75,6 @@
     min-height: 40px;
   }
 
-  /* Progress bar */
   .progress-wrapper {
     width: 100%;
     background: #333;
@@ -103,6 +111,7 @@
   </div>
 
   <button id="sendBtn">Flash Message</button>
+  <button id="cancelBtn">Cancel</button>
 </div>
 
 <script>
@@ -120,8 +129,8 @@ const morseMap = {
 };
 
 let track;
+let cancelRequested = false;
 
-// Flash control
 async function flash(on) {
   if (!track) return;
   try {
@@ -153,6 +162,8 @@ async function playMorse(morse, dot) {
   let progress = 0;
 
   for (let symbol of morse) {
+    if (cancelRequested) break;
+
     progress++;
     progressBar.style.width = (progress / totalSymbols * 100) + "%";
 
@@ -167,8 +178,7 @@ async function playMorse(morse, dot) {
     }
   }
 
-  // Reset progress bar after finishing
-  await sleep(300);
+  await flash(false);
   progressBar.style.width = "0%";
 }
 
@@ -187,8 +197,16 @@ document.getElementById("textInput").oninput = function() {
   document.getElementById("morsePreview").innerText = toMorse(this.value);
 };
 
+document.getElementById("cancelBtn").onclick = () => {
+  cancelRequested = true;
+};
+
 document.getElementById("sendBtn").onclick = async () => {
   if (!track) await initCamera();
+
+  cancelRequested = false;
+
+  document.getElementById("cancelBtn").style.display = "block";
 
   const text = document.getElementById("textInput").value;
   const morse = toMorse(text);
@@ -197,8 +215,11 @@ document.getElementById("sendBtn").onclick = async () => {
   document.getElementById("morsePreview").innerText = morse;
 
   await playMorse(morse, dot);
+
+  document.getElementById("cancelBtn").style.display = "none";
 };
 </script>
 
 </body>
 </html>
+
